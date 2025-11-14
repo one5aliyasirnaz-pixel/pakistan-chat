@@ -1,25 +1,25 @@
 const express = require('express');
-const WebSocket = require('ws');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-// Routes
+// Basic route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK', message: 'Pakistan Chat Server is running' });
+    res.json({ status: 'OK', message: 'Server is running' });
 });
 
 // Start server
-const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Pakistan Chat Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Pakistan Chat Server running on port ${PORT}`);
 });
 
 // WebSocket setup
