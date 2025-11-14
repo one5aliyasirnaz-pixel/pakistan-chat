@@ -33,16 +33,7 @@ class PakistanChat {
         document.getElementById('muteToggle').addEventListener('click', () => this.toggleMute());
         document.getElementById('pushToTalk').addEventListener('mousedown', () => this.startPushToTalk());
         document.getElementById('pushToTalk').addEventListener('mouseup', () => this.stopPushToTalk());
-        document.getElementById('pushToTalk').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.startPushToTalk();
-        });
-        document.getElementById('pushToTalk').addEventListener('touchend', (e) => {
-            e.preventDefault();
-            this.stopPushToTalk();
-        });
 
-        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === ' ' && e.target.id !== 'messageInput') {
                 e.preventDefault();
@@ -55,18 +46,6 @@ class PakistanChat {
                 e.preventDefault();
                 this.stopPushToTalk();
             }
-        });
-
-        // Toolbar buttons
-        document.querySelectorAll('.toolbar-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                alert('Feature coming soon: ' + e.target.title);
-            });
-        });
-
-        // Emoji button
-        document.querySelector('.emoji-btn').addEventListener('click', () => {
-            alert('Emoticons coming soon!');
         });
     }
 
@@ -98,14 +77,10 @@ class PakistanChat {
     async initializeAudio() {
         try {
             this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true
-                } 
+                audio: true
             });
             this.updateMuteState(true);
         } catch (error) {
-            console.warn('Microphone access denied:', error);
             document.getElementById('permissionBanner').classList.remove('hidden');
             this.localStream = null;
         }
@@ -118,8 +93,6 @@ class PakistanChat {
         this.ws = new WebSocket(wsUrl);
         
         this.ws.onopen = () => {
-            console.log('✅ WebSocket connected');
-            this.reconnectAttempts = 0;
             this.updateConnectionStatus(true);
             
             this.ws.send(JSON.stringify({
@@ -139,13 +112,7 @@ class PakistanChat {
         };
 
         this.ws.onclose = () => {
-            console.log('❌ WebSocket disconnected');
             this.updateConnectionStatus(false);
-            this.attemptReconnect();
-        };
-
-        this.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
         };
     }
 
@@ -159,15 +126,10 @@ class PakistanChat {
                 
             case 'user-joined':
                 this.addUser(message.clientId, message.username);
-                this.createPeerConnection(message.clientId);
                 break;
                 
             case 'user-left':
                 this.removeUser(message.clientId);
-                break;
-                
-            case 'signal':
-                this.handleSignal(message.from, message.payload);
                 break;
                 
             case 'message':
@@ -189,17 +151,6 @@ class PakistanChat {
         }
     }
 
-    attemptReconnect() {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-            
-            setTimeout(() => {
-                this.reconnectAttempts++;
-                this.connectWebSocket();
-            }, delay);
-        }
-    }
-
     updateUserList(users) {
         const usersList = document.getElementById('usersList');
         usersList.innerHTML = '';
@@ -210,7 +161,6 @@ class PakistanChat {
             }
         });
         
-        // Add local user
         this.addUserElement(this.clientId, this.username, true);
         this.updateUserCount();
     }
@@ -235,7 +185,6 @@ class PakistanChat {
 
     addUser(clientId, username) {
         this.addUserElement(clientId, username);
-        this.createPeerConnection(clientId);
         this.updateUserCount();
     }
 
@@ -243,12 +192,6 @@ class PakistanChat {
         const userElement = document.getElementById(`user-${clientId}`);
         if (userElement) {
             userElement.remove();
-        }
-        
-        const peer = this.peers.get(clientId);
-        if (peer) {
-            peer.connection.close();
-            this.peers.delete(clientId);
         }
         this.updateUserCount();
     }
@@ -258,128 +201,11 @@ class PakistanChat {
         document.getElementById('userCount').textContent = userCount;
     }
 
-    createPeerConnection(remoteClientId) {
-        if (!this.localStream) return;
-
-        const configuration = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' }
-            ]
-        };
-
-        const pc = new RTCPeerConnection(configuration);
-        
-        // Add local stream
-        this.localStream.getTracks().forEach(track => {
-            pc.addTrack(track, this.localStream);
-        });
-
-        // Handle incoming tracks
-        pc.ontrack = (event) => {
-            const audio = document.createElement('audio');
-            audio.srcObject = event.streams[0];
-            audio.autoplay = true;
-            
-            // Setup remote audio level monitoring
-            this.setupRemoteAudioLevel(audio, remoteClientId);
-        };
-
-        // Handle ICE candidates
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
-                this.sendSignal(remoteClientId, {
-                    type: 'ice-candidate',
-                    candidate: event.candidate
-                });
-            }
-        };
-
-        this.peers.set(remoteClientId, { connection: pc, isMakingOffer: false });
-
-        // Create offer
-        this.createOffer(remoteClientId);
-    }
-
-    async createOffer(remoteClientId) {
-        const peer = this.peers.get(remoteClientId);
-        if (!peer || peer.isMakingOffer) return;
-
-        try {
-            peer.isMakingOffer = true;
-            const offer = await peer.connection.createOffer();
-            await peer.connection.setLocalDescription(offer);
-            
-            this.sendSignal(remoteClientId, {
-                type: 'offer',
-                sdp: offer.sdp
-            });
-        } catch (error) {
-            console.error('Error creating offer:', error);
-        } finally {
-            peer.isMakingOffer = false;
-        }
-    }
-
-    async handleSignal(from, payload) {
-        const peer = this.peers.get(from);
-        if (!peer) return;
-
-        try {
-            switch (payload.type) {
-                case 'offer':
-                    await peer.connection.setRemoteDescription({
-                        type: 'offer',
-                        sdp: payload.sdp
-                    });
-                    
-                    const answer = await peer.connection.createAnswer();
-                    await peer.connection.setLocalDescription(answer);
-                    
-                    this.sendSignal(from, {
-                        type: 'answer',
-                        sdp: answer.sdp
-                    });
-                    break;
-                    
-                case 'answer':
-                    await peer.connection.setRemoteDescription({
-                        type: 'answer',
-                        sdp: payload.sdp
-                    });
-                    break;
-                    
-                case 'ice-candidate':
-                    await peer.connection.addIceCandidate(payload.candidate);
-                    break;
-            }
-        } catch (error) {
-            console.error('Error handling signal:', error);
-        }
-    }
-
-    sendSignal(to, payload) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
-                type: 'signal',
-                to: to,
-                payload: payload
-            }));
-        }
-    }
-
     sendMessage() {
         const input = document.getElementById('messageInput');
         const text = input.value.trim();
         
-        if (!text) {
-            alert('Please enter a message');
-            return;
-        }
-
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            alert('Not connected to server');
-            return;
-        }
+        if (!text || !this.ws) return;
         
         this.ws.send(JSON.stringify({
             type: 'message',
@@ -464,23 +290,8 @@ class PakistanChat {
         document.getElementById('pushToTalk').classList.remove('recording');
         this.updateMuteState(true);
     }
-
-    setupRemoteAudioLevel(audioElement, clientId) {
-        const updateLevel = () => {
-            if (audioElement.readyState >= 2) {
-                const levelElement = document.getElementById(`level-${clientId}`);
-                if (levelElement) {
-                    const width = audioElement.paused ? 0 : Math.random() * 100;
-                    levelElement.style.width = `${width}%`;
-                }
-            }
-            requestAnimationFrame(updateLevel);
-        };
-        updateLevel();
-    }
 }
 
-// Initialize app when page loads
 window.addEventListener('load', () => {
     new PakistanChat();
 });
