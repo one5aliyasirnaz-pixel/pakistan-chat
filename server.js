@@ -12,14 +12,13 @@ const wss = new WebSocket.Server({ server });
 // Store connected clients and admin/VIP users
 const clients = new Map();
 const adminUsers = new Map([
-    ['one5ali', 'baadshahone51'] // username: password
+    ['one5ali', 'baadshahone51']
 ]);
 const vipUsers = new Set();
 
 wss.on('connection', (ws) => {
     const clientId = Date.now().toString();
     let currentUsername = '';
-    let isAuthenticated = false;
     
     clients.set(clientId, { ws, username: '', isAdmin: false, isVIP: false, isAuthenticated: false });
     
@@ -33,21 +32,17 @@ wss.on('connection', (ws) => {
                 currentUsername = message.username;
                 const password = message.password;
                 
-                // Check if admin login
                 const isAdmin = adminUsers.has(message.username) && adminUsers.get(message.username) === password;
                 const isVIP = vipUsers.has(message.username) || isAdmin;
-                
-                const isAuthenticated = true; // Basic users don't need password
                 
                 clients.set(clientId, { 
                     ws, 
                     username: message.username, 
                     isAdmin: isAdmin,
                     isVIP: isVIP,
-                    isAuthenticated: isAuthenticated
+                    isAuthenticated: true
                 });
                 
-                // Send user role info
                 ws.send(JSON.stringify({
                     type: 'user-role',
                     isAdmin: isAdmin,
@@ -55,40 +50,23 @@ wss.on('connection', (ws) => {
                     username: message.username
                 }));
                 
-                // Broadcast user joined
                 broadcast({
                     type: 'user-joined',
                     userId: clientId,
                     username: message.username,
                     isAdmin: isAdmin,
                     isVIP: isVIP
-                }, clientId);
+                });
                 
-                // Send welcome message
                 ws.send(JSON.stringify({
                     type: 'system',
                     message: `Welcome to Bollywood2 Chat Room! ${isAdmin ? 'You are logged in as ADMIN' : isVIP ? 'You are VIP user' : 'Enjoy chatting!'}`
                 }));
             }
-            else if (message.type === 'audio') {
-                broadcast({
-                    type: 'audio',
-                    userId: clientId,
-                    audioData: message.audioData,
-                    username: message.username
-                }, clientId);
-            }
             else if (message.type === 'message') {
                 const client = clients.get(clientId);
-                if (!client || !client.isAuthenticated) {
-                    ws.send(JSON.stringify({
-                        type: 'error',
-                        message: '❌ Please join the chat first!'
-                    }));
-                    return;
-                }
+                if (!client) return;
                 
-                // Check for bad words
                 if (containsBadWords(message.text)) {
                     ws.send(JSON.stringify({
                         type: 'warning',
@@ -97,13 +75,11 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 
-                // Check for admin commands
                 if (message.text.startsWith('/')) {
                     handleCommand(message.text, clientId);
                     return;
                 }
                 
-                // ✅ FIX: Broadcast message to everyone including sender
                 broadcast({
                     type: 'message',
                     userId: clientId,
@@ -112,7 +88,7 @@ wss.on('connection', (ws) => {
                     timestamp: new Date().toISOString(),
                     isAdmin: client.isAdmin,
                     isVIP: client.isVIP
-                }); // Remove clientId exclusion so sender also sees message
+                });
             }
         } catch (error) {
             console.error('WebSocket error:', error);
@@ -133,22 +109,19 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Bad words filter
 function containsBadWords(text) {
     const badWords = ['gali', 'badword', 'abuse', 'fuck', 'shit', 'asshole'];
     return badWords.some(word => text.toLowerCase().includes(word));
 }
 
-// Admin command handler
 function handleCommand(command, clientId) {
     const client = clients.get(clientId);
-    if (!client || !client.isAuthenticated) return;
+    if (!client) return;
     
     const parts = command.split(' ');
     const cmd = parts[0].toLowerCase();
     const targetUser = parts[1];
     
-    // Check if user has permission for ANY commands
     if (!client.isAdmin && !client.isVIP) {
         client.ws.send(JSON.stringify({
             type: 'error',
@@ -160,7 +133,6 @@ function handleCommand(command, clientId) {
     switch(cmd) {
         case '/kick':
         case '/ban':
-            // Only admin can kick/ban
             if (!client.isAdmin) {
                 client.ws.send(JSON.stringify({
                     type: 'error',
@@ -174,7 +146,6 @@ function handleCommand(command, clientId) {
             
         case '/vip':
         case '/unvip':
-            // Only admin can assign/remove VIP
             if (!client.isAdmin) {
                 client.ws.send(JSON.stringify({
                     type: 'error',
@@ -227,7 +198,6 @@ function kickUser(targetUsername, adminUsername) {
 function makeVIP(targetUsername, adminUsername) {
     vipUsers.add(targetUsername);
     
-    // Update existing user if online
     clients.forEach((client, clientId) => {
         if (client.username === targetUsername) {
             client.isVIP = true;
@@ -249,7 +219,6 @@ function makeVIP(targetUsername, adminUsername) {
 function removeVIP(targetUsername, adminUsername) {
     vipUsers.delete(targetUsername);
     
-    // Update existing user if online
     clients.forEach((client, clientId) => {
         if (client.username === targetUsername) {
             client.isVIP = false;
@@ -269,8 +238,7 @@ function removeVIP(targetUsername, adminUsername) {
 }
 
 function banUser(targetUsername, adminUsername) {
-    // Implement ban logic here
-    kickUser(targetUsername, adminUsername); // For now, just kick
+    kickUser(targetUsername, adminUsername);
     broadcast({
         type: 'system',
         message: `🚫 ${targetUsername} was banned by admin ${adminUsername}`
@@ -291,24 +259,21 @@ function listUsers(ws) {
 }
 
 function showHelp(ws, isAdmin, isVIP) {
-    let helpText = `
-📋 Available Commands:
+    let helpText = `📋 Available Commands:
 /help - Show this help message
 /users - Show online users
 
 `;
     
     if (isAdmin) {
-        helpText += `
-🔧 Admin Commands:
+        helpText += `🔧 Admin Commands:
 /kick [username] - Kick a user
 /vip [username] - Make user VIP
 /unvip [username] - Remove VIP
 /ban [username] - Ban a user
 `;
     } else if (isVIP) {
-        helpText += `
-⭐ VIP Commands:
+        helpText += `⭐ VIP Commands:
 /users - Show online users
 /help - Show this help message
 `;
@@ -320,10 +285,9 @@ function showHelp(ws, isAdmin, isVIP) {
     }));
 }
 
-// ✅ FIX: Broadcast function - remove exclusion so sender sees their own messages
-function broadcast(message, excludeClientId = null) {
+function broadcast(message) {
     const data = JSON.stringify(message);
-    clients.forEach((client, clientId) => {
+    clients.forEach((client) => {
         if (client.ws.readyState === WebSocket.OPEN) {
             client.ws.send(data);
         }
@@ -334,12 +298,12 @@ function broadcast(message, excludeClientId = null) {
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'OK', 
-        message: 'Pakistan Chat with Admin Controls',
+        message: 'Yahoo Classic Chat',
         onlineUsers: clients.size
     });
 });
 
-// Main chat application with Yahoo Classic Design
+// Main route - Fixed syntax
 app.get('/', (req, res) => {
     res.send(`
 <!DOCTYPE html>
@@ -364,7 +328,6 @@ app.get('/', (req, res) => {
             overflow: hidden;
         }
         
-        /* Main Window */
         .yahoo-window {
             width: 100%;
             height: 100%;
@@ -378,7 +341,6 @@ app.get('/', (req, res) => {
             flex-direction: column;
         }
         
-        /* Title Bar */
         .title-bar {
             background: linear-gradient(to right, #000080, #1084d0);
             color: white;
@@ -410,7 +372,6 @@ app.get('/', (req, res) => {
             cursor: pointer;
         }
         
-        /* Menu Bar */
         .menu-bar {
             background: #ece9d8;
             border-bottom: 1px solid #808080;
@@ -429,7 +390,6 @@ app.get('/', (req, res) => {
             color: white;
         }
         
-        /* Toolbar */
         .toolbar {
             background: #ece9d8;
             padding: 4px;
@@ -461,14 +421,12 @@ app.get('/', (req, res) => {
             border-bottom-color: #ffffff;
         }
         
-        /* Main Content */
         .main-content {
             display: flex;
             flex: 1;
             background: white;
         }
         
-        /* Chat Area */
         .chat-area {
             flex: 1;
             display: flex;
@@ -503,7 +461,6 @@ app.get('/', (req, res) => {
         .username.purple { color: #800080; }
         .username.orange { color: #ff6600; }
         
-        /* User List */
         .user-list {
             width: 180px;
             background: white;
@@ -549,7 +506,6 @@ app.get('/', (req, res) => {
             font-weight: bold;
         }
         
-        /* Voice Controls */
         .voice-controls {
             background: #ece9d8;
             padding: 8px;
@@ -617,7 +573,6 @@ app.get('/', (req, res) => {
             background: #000080;
         }
         
-        /* Input Area */
         .input-area {
             background: #ece9d8;
             padding: 8px;
@@ -670,7 +625,6 @@ app.get('/', (req, res) => {
             border-bottom-color: #ffffff;
         }
         
-        /* Advertisement */
         .advertisement {
             background: #ece9d8;
             padding: 4px;
@@ -684,7 +638,6 @@ app.get('/', (req, res) => {
             font-style: italic;
         }
         
-        /* Login Modal */
         .login-modal {
             position: fixed;
             top: 0;
@@ -741,7 +694,6 @@ app.get('/', (req, res) => {
             display: none;
         }
         
-        /* Scrollbars */
         ::-webkit-scrollbar {
             width: 16px;
         }
@@ -760,7 +712,6 @@ app.get('/', (req, res) => {
             border-bottom-color: #808080;
         }
         
-        /* Checkbox */
         input[type="checkbox"] {
             width: 13px;
             height: 13px;
@@ -781,7 +732,6 @@ app.get('/', (req, res) => {
     </style>
 </head>
 <body>
-    <!-- Login Modal -->
     <div id="loginModal" class="login-modal">
         <div class="login-window">
             <div class="login-title">Yahoo! Chat Login</div>
@@ -795,9 +745,7 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
-    <!-- Yahoo Chat Window -->
     <div id="chatApp" class="yahoo-window hidden">
-        <!-- Title Bar -->
         <div class="title-bar">
             <div>Bollywood2: – Chat</div>
             <div class="window-controls">
@@ -807,7 +755,6 @@ app.get('/', (req, res) => {
             </div>
         </div>
         
-        <!-- Menu Bar -->
         <div class="menu-bar">
             <div class="menu-item">Chat</div>
             <div class="menu-item">Edit</div>
@@ -816,7 +763,6 @@ app.get('/', (req, res) => {
             <div class="menu-item">Help</div>
         </div>
         
-        <!-- Toolbar -->
         <div class="toolbar">
             <div class="toolbar-button">📹 Webcam</div>
             <div class="toolbar-button">🎤 Voice</div>
@@ -824,9 +770,7 @@ app.get('/', (req, res) => {
             <div class="toolbar-button">💬 Chat</div>
         </div>
         
-        <!-- Main Content -->
         <div class="main-content">
-            <!-- Chat Area -->
             <div class="chat-area">
                 <div id="messagesContainer" class="messages-container">
                     <div class="message-line">
@@ -846,7 +790,6 @@ app.get('/', (req, res) => {
                     </div>
                 </div>
                 
-                <!-- Voice Controls -->
                 <div class="voice-controls">
                     <div class="voice-section">
                         <div class="hands-free">
@@ -872,7 +815,6 @@ app.get('/', (req, res) => {
                 </div>
             </div>
             
-            <!-- User List -->
             <div class="user-list">
                 <div class="user-list-header">In Room (6)</div>
                 <div class="users-container">
@@ -904,14 +846,12 @@ app.get('/', (req, res) => {
             </div>
         </div>
         
-        <!-- Input Area -->
         <div class="input-area">
             <div class="smiley-button">☺</div>
             <input type="text" id="messageInput" class="message-input" placeholder="Type your message here...">
             <button id="sendBtn" class="send-button">Send</button>
         </div>
         
-        <!-- Advertisement -->
         <div class="advertisement">
             Advertisement Space - Yahoo! Messenger - Download Now!
         </div>
@@ -946,10 +886,9 @@ app.get('/', (req, res) => {
                     if (e.key === 'Enter') this.sendMessage();
                 });
                 
-                // Window controls
                 document.querySelectorAll('.window-control').forEach((control, index) => {
                     control.addEventListener('click', () => {
-                        if (index === 2) { // Close button
+                        if (index === 2) {
                             if (confirm('Are you sure you want to close Yahoo! Chat?')) {
                                 window.close();
                             }
@@ -970,13 +909,12 @@ app.get('/', (req, res) => {
                 document.getElementById('loginModal').classList.add('hidden');
                 document.getElementById('chatApp').classList.remove('hidden');
                 
-                // Add join message
-                this.addMessage('System', `${username} has joined the room`, 'green');
+                this.addMessage('System', username + ' has joined the room', 'green');
             }
             
             connectWebSocket(username, password) {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = \`\${protocol}//\${window.location.host}\`;
+                const wsUrl = protocol + '//' + window.location.host;
                 
                 this.ws = new WebSocket(wsUrl);
                 
@@ -1010,12 +948,12 @@ app.get('/', (req, res) => {
                         break;
                         
                     case 'user-joined':
-                        this.addMessage('System', \`\${message.username} has joined the room\`, 'green');
+                        this.addMessage('System', message.username + ' has joined the room', 'green');
                         this.addUser(message.username);
                         break;
                         
                     case 'user-left':
-                        this.addMessage('System', \`\${message.username} has left the room\`, 'green');
+                        this.addMessage('System', message.username + ' has left the room', 'green');
                         this.removeUser(message.username);
                         break;
                         
@@ -1039,9 +977,7 @@ app.get('/', (req, res) => {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message-line';
                 
-                messageDiv.innerHTML = \`
-                    <span class="username \${color}">\${sender}:</span> \${text}
-                \`;
+                messageDiv.innerHTML = '<span class="username ' + color + '">' + sender + ':</span> ' + text;
                 
                 container.appendChild(messageDiv);
                 container.scrollTop = container.scrollHeight;
@@ -1053,10 +989,7 @@ app.get('/', (req, res) => {
                 userDiv.className = 'user-item';
                 
                 const initial = username.charAt(0).toUpperCase();
-                userDiv.innerHTML = \`
-                    <div class="user-icon">\${initial}</div>
-                    <div>\${username}</div>
-                \`;
+                userDiv.innerHTML = '<div class="user-icon">' + initial + '</div><div>' + username + '</div>';
                 
                 container.appendChild(userDiv);
             }
@@ -1093,7 +1026,6 @@ app.get('/', (req, res) => {
             }
         }
         
-        // Initialize chat when page loads
         window.addEventListener('load', () => {
             window.yahooChat = new YahooChat();
         });
@@ -1105,5 +1037,4 @@ app.get('/', (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log('✅ Yahoo Classic Chat Server running on port ' + PORT);
-    console.log('🔐 Admin Login: one5ali / baadshahone51');
 });
