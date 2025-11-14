@@ -4,24 +4,33 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
-// Serve static files from public folder
-app.use(express.static('public'));
+// Static files serving - Railway ke liye important
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Handle root route - serve index.html
+// Root route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-const server = app.listen(PORT, () => {
-    console.log(`🚀 Pakistan Chat Room running on http://localhost:${PORT}`);
+// Health check route
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'OK', message: 'Server is running' });
 });
 
-// WebSocket server for signaling
+// Handle all routes for SPA
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
+
+// WebSocket server
 const wss = new WebSocket.Server({ server, path: '/ws' });
 
-// Rooms storage
 const rooms = {
     'Pakistan Room 60': {
         clients: new Map(),
@@ -42,7 +51,6 @@ function broadcastToRoom(roomId, message, excludeClientId = null) {
 }
 
 wss.on('connection', (ws) => {
-    console.log('🔗 New user connected');
     let currentClient = null;
     let currentRoom = null;
 
@@ -68,9 +76,7 @@ wss.on('connection', (ws) => {
                 
                 currentRoom.clients.set(clientId, currentClient);
                 
-                console.log(`✅ ${username} joined ${roomId}`);
-                
-                // Send join success with client list and recent messages
+                // Send join success
                 ws.send(JSON.stringify({
                     type: 'join-success',
                     clientId,
@@ -81,7 +87,7 @@ wss.on('connection', (ws) => {
                     messages: currentRoom.messages.slice(-50)
                 }));
                 
-                // Broadcast user joined to others
+                // Broadcast to others
                 broadcastToRoom(roomId, {
                     type: 'user-joined',
                     clientId,
@@ -89,7 +95,6 @@ wss.on('connection', (ws) => {
                 }, clientId);
             }
             else if (message.type === 'signal' && currentClient) {
-                // Forward WebRTC signaling messages
                 const targetClient = currentRoom.clients.get(message.to);
                 if (targetClient && targetClient.ws.readyState === WebSocket.OPEN) {
                     targetClient.ws.send(JSON.stringify({
@@ -100,7 +105,6 @@ wss.on('connection', (ws) => {
                 }
             }
             else if (message.type === 'message' && currentClient && currentRoom) {
-                // Sanitize and store message
                 const sanitizedText = message.text.toString().substring(0, 1000);
                 const chatMessage = {
                     id: Date.now().toString(),
@@ -109,27 +113,22 @@ wss.on('connection', (ws) => {
                     timestamp: new Date().toISOString()
                 };
                 
-                console.log(`💬 ${currentClient.username}: ${sanitizedText}`);
-                
                 currentRoom.messages.push(chatMessage);
-                // Keep only last 50 messages
                 if (currentRoom.messages.length > 50) {
                     currentRoom.messages = currentRoom.messages.slice(-50);
                 }
                 
-                // Broadcast message to all in room
                 broadcastToRoom('Pakistan Room 60', {
                     type: 'message',
                     message: chatMessage
                 });
             }
         } catch (error) {
-            console.error('❌ Message processing error:', error);
+            console.error('Message processing error:', error);
         }
     });
 
     ws.on('close', () => {
-        console.log('🔌 User disconnected');
         if (currentClient && currentRoom) {
             currentRoom.clients.delete(currentClient.id);
             broadcastToRoom('Pakistan Room 60', {
