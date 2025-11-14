@@ -76,14 +76,12 @@
             background: #3665b3;
             color: white;
             margin-left: auto;
-            border-bottom-right-radius: 2px;
         }
         
         .message.other {
             background: #e6f2ff;
             color: #333;
             margin-right: auto;
-            border-bottom-left-radius: 2px;
         }
         
         .message-header {
@@ -129,12 +127,8 @@
             outline: none;
         }
         
-        .message-input:focus {
-            border-color: #3665b3;
-        }
-        
         .send-btn {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            background: #4CAF50;
             color: white;
             border: none;
             padding: 12px 25px;
@@ -193,24 +187,13 @@
         .hidden {
             display: none;
         }
-        
-        .control-btn {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            background: #3665b3;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
     <div id="loginModal" class="login-modal">
         <div class="login-box">
             <h2>🟢 Join Pakistan Room 60</h2>
-            <input type="text" id="usernameInput" class="username-input" placeholder="Enter your name" maxlength="20">
+            <input type="text" id="usernameInput" class="username-input" placeholder="Enter your name">
             <button id="joinBtn" class="join-btn">Join Chat Room</button>
         </div>
     </div>
@@ -224,7 +207,7 @@
             <div class="chat-area">
                 <div id="messagesContainer" class="messages"></div>
                 <div class="input-area">
-                    <input type="text" id="messageInput" class="message-input" placeholder="Type your message..." maxlength="500">
+                    <input type="text" id="messageInput" class="message-input" placeholder="Type your message...">
                     <button id="sendBtn" class="send-btn">Send</button>
                 </div>
             </div>
@@ -234,10 +217,6 @@
                     <h3>🟢 Online Users</h3>
                     <div id="usersList"></div>
                 </div>
-                <div class="audio-controls">
-                    <button id="muteBtn" class="control-btn">🎤 Mute</button>
-                    <button id="voiceBtn" class="control-btn">🎙️ Push to Talk</button>
-                </div>
             </div>
         </div>
     </div>
@@ -246,37 +225,24 @@
         class SimpleChat {
             constructor() {
                 this.username = '';
-                this.messages = JSON.parse(localStorage.getItem('chatMessages') || '[]');
-                this.users = new Set();
+                this.messages = [];
                 this.init();
             }
             
             init() {
                 this.bindEvents();
-                this.loadMessages();
-                this.updateUsers();
             }
             
             bindEvents() {
-                // Login
                 document.getElementById('joinBtn').addEventListener('click', () => this.join());
                 document.getElementById('usernameInput').addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.join();
                 });
                 
-                // Messaging
                 document.getElementById('sendBtn').addEventListener('click', () => this.sendMessage());
                 document.getElementById('messageInput').addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.sendMessage();
                 });
-                
-                // Audio controls
-                document.getElementById('muteBtn').addEventListener('click', () => this.toggleMute());
-                document.getElementById('voiceBtn').addEventListener('mousedown', () => this.startVoice());
-                document.getElementById('voiceBtn').addEventListener('mouseup', () => this.stopVoice());
-                
-                // Update users every 5 seconds
-                setInterval(() => this.updateUsers(), 5000);
             }
             
             join() {
@@ -284,12 +250,10 @@
                 if (!username) return alert('Please enter your name');
                 
                 this.username = username;
-                this.addUser(username);
                 
                 document.getElementById('loginModal').classList.add('hidden');
                 document.getElementById('chatApp').classList.remove('hidden');
                 
-                // Welcome message
                 this.addMessage('System', `🟢 ${username} joined the chat`);
             }
             
@@ -300,36 +264,16 @@
                 
                 this.addMessage(this.username, text);
                 input.value = '';
-                
-                // Auto reply from bot
-                setTimeout(() => {
-                    const replies = [
-                        'Hello there! 👋',
-                        'Nice to chat with you!',
-                        'How are you doing?',
-                        'Welcome to Pakistan Room 60!',
-                        'This chat is awesome! 🎉'
-                    ];
-                    const randomReply = replies[Math.floor(Math.random() * replies.length)];
-                    this.addMessage('ChatBot', randomReply);
-                }, 1000 + Math.random() * 2000);
             }
             
             addMessage(sender, text) {
                 const message = {
-                    id: Date.now(),
                     sender: sender,
                     text: text,
                     timestamp: new Date().toLocaleTimeString(),
                     isOwn: sender === this.username
                 };
                 
-                this.messages.push(message);
-                if (this.messages.length > 100) {
-                    this.messages = this.messages.slice(-100);
-                }
-                
-                localStorage.setItem('chatMessages', JSON.stringify(this.messages));
                 this.displayMessage(message);
             }
             
@@ -349,77 +293,8 @@
                 container.appendChild(messageDiv);
                 container.scrollTop = container.scrollHeight;
             }
-            
-            loadMessages() {
-                this.messages.forEach(msg => this.displayMessage(msg));
-            }
-            
-            addUser(username) {
-                this.users.add(username);
-                this.updateUsersList();
-                
-                // Save to localStorage
-                const userData = JSON.parse(localStorage.getItem('chatUsers') || '{}');
-                userData[username] = Date.now();
-                localStorage.setItem('chatUsers', JSON.stringify(userData));
-            }
-            
-            updateUsers() {
-                const userData = JSON.parse(localStorage.getItem('chatUsers') || '{}');
-                const now = Date.now();
-                const activeUsers = new Set();
-                
-                // Remove inactive users (30 seconds)
-                for (const [user, lastSeen] of Object.entries(userData)) {
-                    if (now - lastSeen < 30000) {
-                        activeUsers.add(user);
-                        userData[user] = now; // Update last seen
-                    }
-                }
-                
-                localStorage.setItem('chatUsers', JSON.stringify(userData));
-                this.users = activeUsers;
-                this.updateUsersList();
-            }
-            
-            updateUsersList() {
-                const usersList = document.getElementById('usersList');
-                usersList.innerHTML = '';
-                
-                this.users.forEach(user => {
-                    const userDiv = document.createElement('div');
-                    userDiv.className = 'user-item';
-                    userDiv.textContent = user + (user === this.username ? ' (You)' : '');
-                    usersList.appendChild(userDiv);
-                });
-            }
-            
-            toggleMute() {
-                const btn = document.getElementById('muteBtn');
-                const isMuted = btn.textContent.includes('Unmute');
-                
-                if (isMuted) {
-                    btn.textContent = '🎤 Mute';
-                    btn.style.background = '#3665b3';
-                } else {
-                    btn.textContent = '🎤 Unmute';
-                    btn.style.background = '#ff4444';
-                }
-                
-                this.addMessage('System', `🔊 ${this.username} ${isMuted ? 'unmuted' : 'muted'} microphone`);
-            }
-            
-            startVoice() {
-                document.getElementById('voiceBtn').style.background = '#ff4444';
-                this.addMessage('System', `🎙️ ${this.username} is speaking...`);
-            }
-            
-            stopVoice() {
-                document.getElementById('voiceBtn').style.background = '#3665b3';
-            }
         }
         
-        // Start the chat when page loads
         window.addEventListener('load', () => {
             new SimpleChat();
         });
