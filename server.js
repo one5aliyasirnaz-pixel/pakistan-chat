@@ -67,7 +67,7 @@ wss.on('connection', (ws) => {
                 // Send welcome message
                 ws.send(JSON.stringify({
                     type: 'system',
-                    message: `🛡️ Welcome to Pakistan Room 60! ${isAdmin ? 'You are logged in as ADMIN' : isVIP ? 'You are VIP user' : 'Enjoy chatting!'}`
+                    message: `Welcome to Bollywood2 Chat Room! ${isAdmin ? 'You are logged in as ADMIN' : isVIP ? 'You are VIP user' : 'Enjoy chatting!'}`
                 }));
             }
             else if (message.type === 'audio') {
@@ -339,7 +339,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Main chat application with Admin Controls
+// Main chat application with Yahoo Classic Design
 app.get('/', (req, res) => {
     res.send(`
 <!DOCTYPE html>
@@ -347,280 +347,589 @@ app.get('/', (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pakistan Room 60 - Admin Chat</title>
+    <title>Bollywood2 - Chat</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Tahoma', Arial; 
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #333; height: 100vh; 
-            display: flex; justify-content: center; align-items: center;
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Tahoma', 'Arial', sans-serif;
+            font-size: 12px;
         }
-        .chat-container {
-            width: 95%; max-width: 1200px; height: 95vh;
-            background: white; border-radius: 15px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-            display: flex; flex-direction: column; overflow: hidden;
+        
+        body {
+            background: #c0c0c0;
+            padding: 4px;
+            height: 100vh;
+            overflow: hidden;
         }
-        .header {
-            background: linear-gradient(135deg, #3665b3 0%, #2a5298 100%);
-            color: white; padding: 20px; text-align: center;
-            border-bottom: 4px solid #1e3c72;
-            position: relative;
+        
+        /* Main Window */
+        .yahoo-window {
+            width: 100%;
+            height: 100%;
+            background: #ece9d8;
+            border: 2px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            display: flex;
+            flex-direction: column;
         }
-        .header h1 { font-size: 24px; margin: 0; }
-        .user-badges {
-            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
-            display: flex; gap: 10px;
-        }
-        .badge {
-            padding: 4px 8px; border-radius: 12px; font-size: 12px;
+        
+        /* Title Bar */
+        .title-bar {
+            background: linear-gradient(to right, #000080, #1084d0);
+            color: white;
+            padding: 2px 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 18px;
             font-weight: bold;
         }
-        .badge.admin { background: #ff4444; color: white; }
-        .badge.vip { background: gold; color: black; }
-        .connection-status {
-            display: flex; align-items: center; justify-content: center;
-            gap: 10px; margin-top: 5px; font-size: 14px;
+        
+        .window-controls {
+            display: flex;
+            gap: 2px;
         }
-        .status-dot {
-            width: 10px; height: 10px; border-radius: 50%;
-            background: #ff4444;
+        
+        .window-control {
+            width: 16px;
+            height: 14px;
+            background: #c0c0c0;
+            border: 1px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            text-align: center;
+            line-height: 12px;
+            font-size: 10px;
+            cursor: pointer;
         }
-        .status-dot.connected { background: #4CAF50; }
-        .main-content { display: flex; flex: 1; }
-        .chat-area { flex: 1; display: flex; flex-direction: column; }
-        .messages { 
-            flex: 1; padding: 20px; overflow-y: auto; 
-            background: #f8fbff; 
+        
+        /* Menu Bar */
+        .menu-bar {
+            background: #ece9d8;
+            border-bottom: 1px solid #808080;
+            padding: 2px 4px;
+            display: flex;
+            gap: 15px;
+            font-size: 11px;
         }
-        .message {
-            margin-bottom: 15px; padding: 12px 18px; 
-            border-radius: 12px; max-width: 70%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        
+        .menu-item {
+            cursor: pointer;
+        }
+        
+        .menu-item:hover {
+            background: #000080;
+            color: white;
+        }
+        
+        /* Toolbar */
+        .toolbar {
+            background: #ece9d8;
+            padding: 4px;
+            border-bottom: 1px solid #808080;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .toolbar-button {
+            background: #ece9d8;
+            border: 1px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            padding: 3px 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+        }
+        
+        .toolbar-button:active {
+            border-top-color: #808080;
+            border-left-color: #808080;
+            border-right-color: #ffffff;
+            border-bottom-color: #ffffff;
+        }
+        
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex: 1;
+            background: white;
+        }
+        
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #808080;
+        }
+        
+        .messages-container {
+            flex: 1;
+            padding: 4px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #808080;
+            margin: 4px;
+            font-family: 'Tahoma', sans-serif;
+            font-size: 11px;
+        }
+        
+        .message-line {
+            margin-bottom: 2px;
+            line-height: 1.3;
+        }
+        
+        .username {
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .username.green { color: #008000; }
+        .username.blue { color: #0000ff; }
+        .username.red { color: #ff0000; }
+        .username.purple { color: #800080; }
+        .username.orange { color: #ff6600; }
+        
+        /* User List */
+        .user-list {
+            width: 180px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-list-header {
+            background: #ffcf00;
+            padding: 4px 8px;
+            font-weight: bold;
+            border-bottom: 1px solid #808080;
+        }
+        
+        .users-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px;
+        }
+        
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 4px;
+            cursor: pointer;
+        }
+        
+        .user-item:hover {
+            background: #000080;
+            color: white;
+        }
+        
+        .user-icon {
+            width: 16px;
+            height: 16px;
+            background: #ffcf00;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        /* Voice Controls */
+        .voice-controls {
+            background: #ece9d8;
+            padding: 8px;
+            border-top: 1px solid #808080;
+        }
+        
+        .voice-section {
+            background: white;
+            border: 1px solid #808080;
+            padding: 8px;
+        }
+        
+        .hands-free {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        
+        .talk-button {
+            background: #00ff00;
+            border: 2px solid #008000;
+            padding: 6px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        
+        .audio-bars {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 8px;
+            justify-content: center;
+        }
+        
+        .audio-bar {
+            width: 8px;
+            height: 20px;
+            background: #c0c0c0;
+            border: 1px solid #808080;
+        }
+        
+        .mute-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .mute-slider {
+            flex: 1;
+            height: 12px;
+            background: #c0c0c0;
+            border: 1px solid #808080;
             position: relative;
         }
-        .message.own {
-            background: linear-gradient(135deg, #3665b3 0%, #2a5298 100%);
-            color: white; margin-left: auto; border-bottom-right-radius: 4px;
+        
+        .mute-slider::after {
+            content: '';
+            position: absolute;
+            right: 2px;
+            top: 2px;
+            width: 8px;
+            height: 8px;
+            background: #000080;
         }
-        .message.other {
-            background: white; color: #333; margin-right: auto; 
-            border: 2px solid #e6f2ff; border-bottom-left-radius: 4px;
-        }
-        .message.system {
-            background: #fff3cd; color: #856404; margin: 10px auto;
-            border: 1px solid #ffeaa7; text-align: center; max-width: 90%;
-        }
-        .message.warning {
-            background: #f8d7da; color: #721c24; margin: 10px auto;
-            border: 1px solid #f5c6cb; text-align: center; max-width: 90%;
-        }
-        .message-header {
-            display: flex; justify-content: space-between;
-            font-size: 12px; margin-bottom: 5px; opacity: 0.8;
-        }
-        .user-badge-small {
-            display: inline-block; padding: 2px 6px; margin-left: 5px;
-            border-radius: 8px; font-size: 10px; font-weight: bold;
-        }
-        .admin-badge { background: #ff4444; color: white; }
-        .vip-badge { background: gold; color: black; }
-        .sidebar {
-            width: 300px; background: #f0f8ff;
-            border-left: 3px solid #d1e0ff; padding: 20px;
-            display: flex; flex-direction: column;
-        }
-        .users-list { flex: 1; }
-        .users-list h3 { 
-            color: #3665b3; margin-bottom: 15px; 
-            border-bottom: 2px solid #3665b3; padding-bottom: 10px;
-        }
-        .user-item {
-            padding: 10px 15px; margin-bottom: 8px;
-            background: white; border-radius: 8px;
-            border-left: 4px solid #4CAF50; 
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .user-item.admin { border-left-color: #ff4444; background: #ffe6e6; }
-        .user-item.vip { border-left-color: gold; background: #fff9e6; }
-        .voice-controls {
-            margin-top: 20px; padding-top: 20px;
-            border-top: 2px solid #d1e0ff;
-        }
-        .voice-btn {
-            width: 100%; padding: 12px; margin-bottom: 10px;
-            border: none; border-radius: 8px; font-size: 16px;
-            cursor: pointer; font-weight: bold; transition: all 0.3s;
-        }
-        .mute-btn { 
-            background: #4CAF50; color: white;
-        }
-        .mute-btn.muted { background: #ff4444; }
-        .ptt-btn { 
-            background: #3665b3; color: white;
-        }
-        .ptt-btn.recording { background: #ff4444; }
-        .admin-panel {
-            margin-top: 15px; padding: 15px;
-            background: #fff3cd; border: 2px solid #ffeaa7;
-            border-radius: 8px;
-        }
-        .admin-panel h4 { color: #856404; margin-bottom: 10px; }
-        .admin-input {
-            width: 100%; padding: 8px; margin-bottom: 8px;
-            border: 1px solid #ccc; border-radius: 4px; font-size: 14px;
-        }
-        .admin-btn {
-            padding: 6px 12px; margin: 2px; border: none; border-radius: 4px;
-            cursor: pointer; font-size: 12px;
-        }
-        .kick-btn { background: #ff4444; color: white; }
-        .vip-btn { background: gold; color: black; }
+        
+        /* Input Area */
         .input-area {
-            padding: 20px; background: #f8fbff;
-            border-top: 3px solid #e6f2ff; display: flex; gap: 12px;
+            background: #ece9d8;
+            padding: 8px;
+            border-top: 1px solid #808080;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
+        
+        .smiley-button {
+            background: #ece9d8;
+            border: 1px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
         .message-input {
-            flex: 1; padding: 12px 20px;
-            border: 2px solid #d1e0ff; border-radius: 25px;
-            font-size: 16px; outline: none;
+            flex: 1;
+            height: 22px;
+            border: 1px solid #808080;
+            padding: 2px 4px;
+            background: white;
         }
-        .message-input:focus { border-color: #3665b3; }
-        .send-btn {
-            background: #4CAF50; color: white; border: none; 
-            padding: 12px 25px; border-radius: 25px; 
-            cursor: pointer; font-weight: bold; font-size: 16px;
+        
+        .send-button {
+            background: #ece9d8;
+            border: 1px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-weight: bold;
         }
+        
+        .send-button:active {
+            border-top-color: #808080;
+            border-left-color: #808080;
+            border-right-color: #ffffff;
+            border-bottom-color: #ffffff;
+        }
+        
+        /* Advertisement */
+        .advertisement {
+            background: #ece9d8;
+            padding: 4px;
+            border-top: 1px solid #808080;
+            text-align: center;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-style: italic;
+        }
+        
+        /* Login Modal */
         .login-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); display: flex;
-            justify-content: center; align-items: center; z-index: 1000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
-        .login-box {
-            background: white; padding: 40px; border-radius: 15px;
-            text-align: center; width: 90%; max-width: 400px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        
+        .login-window {
+            background: #ece9d8;
+            border: 2px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            padding: 20px;
+            width: 300px;
         }
-        .login-box h2 { color: #3665b3; margin-bottom: 20px; }
-        .username-input {
-            width: 100%; padding: 12px 15px; margin-bottom: 10px;
-            border: 2px solid #d1e0ff; border-radius: 8px; font-size: 16px;
+        
+        .login-title {
+            background: linear-gradient(to right, #000080, #1084d0);
+            color: white;
+            padding: 4px 8px;
+            margin: -20px -20px 15px -20px;
+            font-weight: bold;
         }
-        .password-input {
-            width: 100%; padding: 12px 15px; margin-bottom: 20px;
-            border: 2px solid #d1e0ff; border-radius: 8px; font-size: 16px;
+        
+        .login-input {
+            width: 100%;
+            padding: 4px;
+            margin-bottom: 8px;
+            border: 1px solid #808080;
         }
-        .join-btn {
-            width: 100%; padding: 12px; background: #3665b3;
-            color: white; border: none; border-radius: 8px;
-            font-size: 16px; cursor: pointer; font-weight: bold;
+        
+        .login-button {
+            background: #ece9d8;
+            border: 1px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            padding: 6px 20px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
         }
-        .hidden { display: none; }
-        .command-hint {
-            font-size: 12px; color: #666; margin-top: 5px;
+        
+        .hidden {
+            display: none;
         }
-        .login-info {
-            font-size: 12px; color: #666; margin-top: 10px;
-            background: #f0f8ff; padding: 10px; border-radius: 5px;
+        
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 16px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #c0c0c0;
+            border: 1px solid #808080;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c0c0c0;
+            border: 1px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+        }
+        
+        /* Checkbox */
+        input[type="checkbox"] {
+            width: 13px;
+            height: 13px;
+            appearance: none;
+            background: white;
+            border: 1px solid #808080;
+            position: relative;
+        }
+        
+        input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            top: -1px;
+            left: 2px;
+            font-size: 10px;
+            color: black;
         }
     </style>
 </head>
 <body>
+    <!-- Login Modal -->
     <div id="loginModal" class="login-modal">
-        <div class="login-box">
-            <h2>🛡️ Join Pakistan Room 60</h2>
-            <input type="text" id="usernameInput" class="username-input" placeholder="Enter your username">
-            <input type="password" id="passwordInput" class="password-input" placeholder="Password (optional for admin)">
-            <div class="login-info">
-                🔐 Admin Login: one5ali / baadshahone51<br>
-                👥 Normal users: Any username, no password needed
+        <div class="login-window">
+            <div class="login-title">Yahoo! Chat Login</div>
+            <div style="margin-bottom: 10px;">Enter your Yahoo! ID and password:</div>
+            <input type="text" id="usernameInput" class="login-input" placeholder="Yahoo! ID">
+            <input type="password" id="passwordInput" class="login-input" placeholder="Password">
+            <div style="font-size: 11px; color: #666; margin-bottom: 10px;">
+                Admin: one5ali / baadshahone51
             </div>
-            <button id="joinBtn" class="join-btn">Join Secure Chat</button>
+            <button id="joinBtn" class="login-button">Login</button>
         </div>
     </div>
 
-    <div id="chatApp" class="chat-container hidden">
-        <div class="header">
-            <h1>Pakistan Room 60 -- Secure Chat</h1>
-            <div class="user-badges" id="userBadges"></div>
-            <div class="connection-status">
-                <div id="statusDot" class="status-dot"></div>
-                <span id="statusText">Connecting...</span>
+    <!-- Yahoo Chat Window -->
+    <div id="chatApp" class="yahoo-window hidden">
+        <!-- Title Bar -->
+        <div class="title-bar">
+            <div>Bollywood2: – Chat</div>
+            <div class="window-controls">
+                <div class="window-control">_</div>
+                <div class="window-control">□</div>
+                <div class="window-control">×</div>
             </div>
         </div>
         
+        <!-- Menu Bar -->
+        <div class="menu-bar">
+            <div class="menu-item">Chat</div>
+            <div class="menu-item">Edit</div>
+            <div class="menu-item">View</div>
+            <div class="menu-item">Actions</div>
+            <div class="menu-item">Help</div>
+        </div>
+        
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-button">📹 Webcam</div>
+            <div class="toolbar-button">🎤 Voice</div>
+            <div class="toolbar-button">📁 Send File</div>
+            <div class="toolbar-button">💬 Chat</div>
+        </div>
+        
+        <!-- Main Content -->
         <div class="main-content">
+            <!-- Chat Area -->
             <div class="chat-area">
-                <div id="messagesContainer" class="messages">
-                    <div class="message system">
-                        <div>🛡️ Welcome to Pakistan Room 60! Type /help for commands</div>
+                <div id="messagesContainer" class="messages-container">
+                    <div class="message-line">
+                        <span class="username green">Room:</span> Welcome to Bollywood2 Chat Room! Type /help for commands.
+                    </div>
+                    <div class="message-line">
+                        <span class="username blue">Moderator:</span> Please follow chat rules and be respectful.
+                    </div>
+                    <div class="message-line">
+                        <span class="username red">HotGirl23:</span> hey everyone! 😊
+                    </div>
+                    <div class="message-line">
+                        <span class="username purple">CoolDude45:</span> whats up people?
+                    </div>
+                    <div class="message-line">
+                        <span class="username orange">ChatMaster:</span> anyone here from Mumbai?
                     </div>
                 </div>
-                <div class="input-area">
-                    <div style="flex: 1;">
-                        <input type="text" id="messageInput" class="message-input" placeholder="Type message or /command">
-                        <div class="command-hint">Commands: /help, /users, /kick, /vip, /ban</div>
+                
+                <!-- Voice Controls -->
+                <div class="voice-controls">
+                    <div class="voice-section">
+                        <div class="hands-free">
+                            <input type="checkbox" id="handsFree">
+                            <label for="handsFree">Hands Free</label>
+                        </div>
+                        <div class="talk-button">Talk</div>
+                        <div class="audio-bars">
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                            <div class="audio-bar"></div>
+                        </div>
+                        <div class="mute-control">
+                            <span>Mute:</span>
+                            <div class="mute-slider"></div>
+                        </div>
                     </div>
-                    <button id="sendBtn" class="send-btn">Send</button>
                 </div>
             </div>
             
-            <div class="sidebar">
-                <div class="users-list">
-                    <h3>👥 Online Users</h3>
-                    <div id="usersList"></div>
-                </div>
-                
-                <div id="adminPanel" class="admin-panel hidden">
-                    <h4>🔧 Admin Controls</h4>
-                    <input type="text" id="targetUser" class="admin-input" placeholder="Username">
-                    <div>
-                        <button class="admin-btn kick-btn" onclick="adminCommand('kick')">Kick</button>
-                        <button class="admin-btn vip-btn" onclick="adminCommand('vip')">Make VIP</button>
-                        <button class="admin-btn" onclick="adminCommand('unvip')" style="background: #ccc;">UnVIP</button>
-                        <button class="admin-btn kick-btn" onclick="adminCommand('ban')">Ban</button>
+            <!-- User List -->
+            <div class="user-list">
+                <div class="user-list-header">In Room (6)</div>
+                <div class="users-container">
+                    <div class="user-item">
+                        <div class="user-icon">F</div>
+                        <div>HotGirl23</div>
+                    </div>
+                    <div class="user-item">
+                        <div class="user-icon">M</div>
+                        <div>CoolDude45</div>
+                    </div>
+                    <div class="user-item">
+                        <div class="user-icon">M</div>
+                        <div>ChatMaster</div>
+                    </div>
+                    <div class="user-item">
+                        <div class="user-icon">F</div>
+                        <div>BollywoodFan</div>
+                    </div>
+                    <div class="user-item">
+                        <div class="user-icon">M</div>
+                        <div>MumbaiBoy</div>
+                    </div>
+                    <div class="user-item">
+                        <div class="user-icon">F</div>
+                        <div>DelhiGirl</div>
                     </div>
                 </div>
-                
-                <div class="voice-controls">
-                    <button id="muteBtn" class="voice-btn mute-btn">🎤 Unmuted</button>
-                    <button id="pttBtn" class="voice-btn ptt-btn">🎙️ Push to Talk (Space)</button>
-                </div>
             </div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="smiley-button">☺</div>
+            <input type="text" id="messageInput" class="message-input" placeholder="Type your message here...">
+            <button id="sendBtn" class="send-button">Send</button>
+        </div>
+        
+        <!-- Advertisement -->
+        <div class="advertisement">
+            Advertisement Space - Yahoo! Messenger - Download Now!
         </div>
     </div>
 
     <script>
-        class PakistanAdminChat {
+        class YahooChat {
             constructor() {
                 this.username = '';
                 this.ws = null;
                 this.isAdmin = false;
                 this.isVIP = false;
-                this.localStream = null;
-                this.isMuted = false;
-                this.isRecording = false;
+                this.userColors = ['green', 'blue', 'red', 'purple', 'orange'];
                 this.init();
             }
             
-            async init() {
-                await this.setupAudio();
+            init() {
                 this.bindEvents();
-            }
-            
-            async setupAudio() {
-                try {
-                    this.localStream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true
-                        } 
-                    });
-                } catch (error) {
-                    console.warn('Microphone access denied:', error);
-                }
             }
             
             bindEvents() {
@@ -637,24 +946,15 @@ app.get('/', (req, res) => {
                     if (e.key === 'Enter') this.sendMessage();
                 });
                 
-                document.getElementById('muteBtn').addEventListener('click', () => this.toggleMute());
-                
-                const pttBtn = document.getElementById('pttBtn');
-                pttBtn.addEventListener('mousedown', () => this.startVoice());
-                pttBtn.addEventListener('mouseup', () => this.stopVoice());
-                
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === ' ' && e.target.id !== 'messageInput') {
-                        e.preventDefault();
-                        this.startVoice();
-                    }
-                });
-                
-                document.addEventListener('keyup', (e) => {
-                    if (e.key === ' ' && e.target.id !== 'messageInput') {
-                        e.preventDefault();
-                        this.stopVoice();
-                    }
+                // Window controls
+                document.querySelectorAll('.window-control').forEach((control, index) => {
+                    control.addEventListener('click', () => {
+                        if (index === 2) { // Close button
+                            if (confirm('Are you sure you want to close Yahoo! Chat?')) {
+                                window.close();
+                            }
+                        }
+                    });
                 });
             }
             
@@ -669,6 +969,9 @@ app.get('/', (req, res) => {
                 
                 document.getElementById('loginModal').classList.add('hidden');
                 document.getElementById('chatApp').classList.remove('hidden');
+                
+                // Add join message
+                this.addMessage('System', `${username} has joined the room`, 'green');
             }
             
             connectWebSocket(username, password) {
@@ -678,7 +981,6 @@ app.get('/', (req, res) => {
                 this.ws = new WebSocket(wsUrl);
                 
                 this.ws.onopen = () => {
-                    this.updateConnectionStatus(true);
                     this.ws.send(JSON.stringify({
                         type: 'join',
                         username: username,
@@ -696,7 +998,6 @@ app.get('/', (req, res) => {
                 };
                 
                 this.ws.onclose = () => {
-                    this.updateConnectionStatus(false);
                     setTimeout(() => this.connectWebSocket(username, password), 3000);
                 };
             }
@@ -706,93 +1007,75 @@ app.get('/', (req, res) => {
                     case 'user-role':
                         this.isAdmin = message.isAdmin;
                         this.isVIP = message.isVIP;
-                        this.updateUserBadges();
-                        if (this.isAdmin || this.isVIP) {
-                            document.getElementById('adminPanel').classList.remove('hidden');
-                        }
                         break;
                         
                     case 'user-joined':
-                        this.addUser(message.userId, message.username, message.isAdmin, message.isVIP);
-                        this.addSystemMessage(\`\${message.username} joined the chat\`);
+                        this.addMessage('System', \`\${message.username} has joined the room\`, 'green');
+                        this.addUser(message.username);
                         break;
                         
                     case 'user-left':
-                        this.removeUser(message.userId);
-                        if (message.username) {
-                            this.addSystemMessage(\`\${message.username} left the chat\`);
-                        }
+                        this.addMessage('System', \`\${message.username} has left the room\`, 'green');
+                        this.removeUser(message.username);
                         break;
                         
                     case 'message':
-                        // ✅ FIX: Show all messages including own
-                        this.addMessage(
-                            message.username, 
-                            message.text, 
-                            message.timestamp, 
-                            message.username === this.username, // isOwn
-                            message.isAdmin,
-                            message.isVIP
-                        );
+                        const color = this.getUserColor(message.username);
+                        this.addMessage(message.username, message.text, color);
                         break;
                         
                     case 'system':
-                        this.addSystemMessage(message.message);
+                        this.addMessage('System', message.message, 'green');
                         break;
                         
                     case 'warning':
-                        this.addWarningMessage(message.message);
-                        break;
-                        
-                    case 'error':
-                        this.addSystemMessage(\`❌ \${message.message}\`);
-                        break;
-                        
-                    case 'kicked':
-                        alert(message.message);
-                        this.ws.close();
-                        break;
-                        
-                    case 'user-list':
-                        this.showUserList(message.users);
-                        break;
-                        
-                    case 'help':
-                        this.addSystemMessage(message.message);
+                        this.addMessage('System', message.message, 'red');
                         break;
                 }
             }
             
-            updateConnectionStatus(connected) {
-                const dot = document.getElementById('statusDot');
-                const text = document.getElementById('statusText');
+            addMessage(sender, text, color = 'blue') {
+                const container = document.getElementById('messagesContainer');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message-line';
                 
-                if (connected) {
-                    dot.className = 'status-dot connected';
-                    text.textContent = 'Connected';
-                } else {
-                    dot.className = 'status-dot';
-                    text.textContent = 'Disconnected';
-                }
+                messageDiv.innerHTML = \`
+                    <span class="username \${color}">\${sender}:</span> \${text}
+                \`;
+                
+                container.appendChild(messageDiv);
+                container.scrollTop = container.scrollHeight;
             }
             
-            updateUserBadges() {
-                const badgesContainer = document.getElementById('userBadges');
-                badgesContainer.innerHTML = '';
+            addUser(username) {
+                const container = document.querySelector('.users-container');
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-item';
                 
-                if (this.isAdmin) {
-                    const adminBadge = document.createElement('div');
-                    adminBadge.className = 'badge admin';
-                    adminBadge.textContent = 'ADMIN';
-                    badgesContainer.appendChild(adminBadge);
-                }
+                const initial = username.charAt(0).toUpperCase();
+                userDiv.innerHTML = \`
+                    <div class="user-icon">\${initial}</div>
+                    <div>\${username}</div>
+                \`;
                 
-                if (this.isVIP) {
-                    const vipBadge = document.createElement('div');
-                    vipBadge.className = 'badge vip';
-                    vipBadge.textContent = 'VIP';
-                    badgesContainer.appendChild(vipBadge);
+                container.appendChild(userDiv);
+            }
+            
+            removeUser(username) {
+                const users = document.querySelectorAll('.user-item');
+                users.forEach(user => {
+                    if (user.textContent.includes(username)) {
+                        user.remove();
+                    }
+                });
+            }
+            
+            getUserColor(username) {
+                let hash = 0;
+                for (let i = 0; i < username.length; i++) {
+                    hash = username.charCodeAt(i) + ((hash << 5) - hash);
                 }
+                return this.userColors[Math.abs(hash) % this.userColors.length];
             }
             
             sendMessage() {
@@ -808,124 +1091,11 @@ app.get('/', (req, res) => {
                 
                 input.value = '';
             }
-            
-            addMessage(sender, text, timestamp, isOwn, isAdmin = false, isVIP = false) {
-                const container = document.getElementById('messagesContainer');
-                const messageDiv = document.createElement('div');
-                
-                messageDiv.className = \`message \${isOwn ? 'own' : 'other'}\`;
-                
-                let badges = '';
-                if (isAdmin) badges += '<span class="user-badge-small admin-badge">ADMIN</span>';
-                if (isVIP) badges += '<span class="user-badge-small vip-badge">VIP</span>';
-                
-                messageDiv.innerHTML = \`
-                    <div class="message-header">
-                        <strong>\${sender}\${badges}</strong>
-                        <span>\${new Date(timestamp).toLocaleTimeString()}</span>
-                    </div>
-                    <div>\${text}</div>
-                \`;
-                
-                container.appendChild(messageDiv);
-                container.scrollTop = container.scrollHeight;
-            }
-            
-            addSystemMessage(text) {
-                const container = document.getElementById('messagesContainer');
-                const messageDiv = document.createElement('div');
-                
-                messageDiv.className = 'message system';
-                messageDiv.innerHTML = \`<div>\${text}</div>\`;
-                
-                container.appendChild(messageDiv);
-                container.scrollTop = container.scrollHeight;
-            }
-            
-            addWarningMessage(text) {
-                const container = document.getElementById('messagesContainer');
-                const messageDiv = document.createElement('div');
-                
-                messageDiv.className = 'message warning';
-                messageDiv.innerHTML = \`<div>\${text}</div>\`;
-                
-                container.appendChild(messageDiv);
-                container.scrollTop = container.scrollHeight;
-            }
-            
-            addUser(userId, username, isAdmin, isVIP) {
-                const usersList = document.getElementById('usersList');
-                const userDiv = document.createElement('div');
-                
-                userDiv.className = 'user-item' + (isAdmin ? ' admin' : '') + (isVIP ? ' vip' : '');
-                userDiv.id = \`user-\${userId}\`;
-                userDiv.innerHTML = \`
-                    <span>\${username}\${username === this.username ? ' (You)' : ''}</span>
-                    <div>\${isAdmin ? '🛡️' : ''}\${isVIP ? '⭐' : ''}</div>
-                \`;
-                
-                usersList.appendChild(userDiv);
-            }
-            
-            removeUser(userId) {
-                const userElement = document.getElementById(\`user-\${userId}\`);
-                if (userElement) {
-                    userElement.remove();
-                }
-            }
-            
-            showUserList(users) {
-                this.addSystemMessage('👥 Online Users: ' + users.map(u => 
-                    \`\${u.username}\${u.isAdmin ? ' (Admin)' : ''}\${u.isVIP ? ' (VIP)' : ''}\`
-                ).join(', '));
-            }
-            
-            toggleMute() {
-                this.isMuted = !this.isMuted;
-                const btn = document.getElementById('muteBtn');
-                
-                if (this.isMuted) {
-                    btn.textContent = '🎤 Muted';
-                    btn.classList.add('muted');
-                } else {
-                    btn.textContent = '🎤 Unmuted';
-                    btn.classList.remove('muted');
-                }
-            }
-            
-            startVoice() {
-                if (this.isRecording || this.isMuted || !this.ws || !this.localStream) return;
-                this.isRecording = true;
-                document.getElementById('pttBtn').classList.add('recording');
-                // Voice recording logic here
-            }
-            
-            stopVoice() {
-                if (!this.isRecording) return;
-                this.isRecording = false;
-                document.getElementById('pttBtn').classList.remove('recording');
-                // Stop voice recording logic here
-            }
         }
         
-        function adminCommand(command) {
-            const targetUser = document.getElementById('targetUser').value.trim();
-            if (!targetUser) return alert('Please enter a username');
-            
-            const chat = window.chatInstance;
-            if (chat && chat.ws) {
-                chat.ws.send(JSON.stringify({
-                    type: 'message',
-                    username: chat.username,
-                    text: \`/\${command} \${targetUser}\`
-                }));
-            }
-            
-            document.getElementById('targetUser').value = '';
-        }
-        
+        // Initialize chat when page loads
         window.addEventListener('load', () => {
-            window.chatInstance = new PakistanAdminChat();
+            window.yahooChat = new YahooChat();
         });
     </script>
 </body>
@@ -934,6 +1104,6 @@ app.get('/', (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-    console.log('✅ Pakistan Admin Chat Server running on port ' + PORT);
+    console.log('✅ Yahoo Classic Chat Server running on port ' + PORT);
     console.log('🔐 Admin Login: one5ali / baadshahone51');
 });
