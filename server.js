@@ -395,55 +395,6 @@ app.get('/', (req, res) => {
             cursor: pointer;
         }
         
-        .menu-bar {
-            background: #ece9d8;
-            border-bottom: 1px solid #808080;
-            padding: 2px 4px;
-            display: flex;
-            gap: 15px;
-            font-size: 11px;
-        }
-        
-        .menu-item {
-            cursor: pointer;
-        }
-        
-        .menu-item:hover {
-            background: #000080;
-            color: white;
-        }
-        
-        .toolbar {
-            background: #ece9d8;
-            padding: 4px;
-            border-bottom: 1px solid #808080;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        
-        .toolbar-button {
-            background: #ece9d8;
-            border: 1px solid;
-            border-top-color: #ffffff;
-            border-left-color: #ffffff;
-            border-right-color: #808080;
-            border-bottom-color: #808080;
-            padding: 3px 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-        }
-        
-        .toolbar-button:active {
-            border-top-color: #808080;
-            border-left-color: #808080;
-            border-right-color: #ffffff;
-            border-bottom-color: #ffffff;
-        }
-        
         .main-content {
             display: flex;
             flex: 1;
@@ -777,21 +728,6 @@ app.get('/', (req, res) => {
                 <div class="window-control">□</div>
                 <div class="window-control">×</div>
             </div>
-        </div>
-        
-        <div class="menu-bar">
-            <div class="menu-item">Chat</div>
-            <div class="menu-item">Edit</div>
-            <div class="menu-item">View</div>
-            <div class="menu-item">Actions</div>
-            <div class="menu-item">Help</div>
-        </div>
-        
-        <div class="toolbar">
-            <div class="toolbar-button">📹 Webcam</div>
-            <div class="toolbar-button">🎤 Voice</div>
-            <div class="toolbar-button">📁 Send File</div>
-            <div class="toolbar-button">💬 Chat</div>
         </div>
         
         <div class="main-content">
