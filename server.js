@@ -11,14 +11,17 @@ const wss = new WebSocket.Server({ server });
 
 // Store connected clients and admin/VIP users
 const clients = new Map();
-const adminUsers = new Set(['admin']); // Default admin username
+const adminUsers = new Map([
+    ['one5ali', 'baadshahone51'] // username: password
+]);
 const vipUsers = new Set();
 
 wss.on('connection', (ws) => {
     const clientId = Date.now().toString();
     let currentUsername = '';
+    let isAuthenticated = false;
     
-    clients.set(clientId, { ws, username: '', isAdmin: false, isVIP: false });
+    clients.set(clientId, { ws, username: '', isAdmin: false, isVIP: false, isAuthenticated: false });
     
     console.log('New client connected:', clientId);
     
@@ -28,21 +31,28 @@ wss.on('connection', (ws) => {
             
             if (message.type === 'join') {
                 currentUsername = message.username;
-                const isAdmin = adminUsers.has(message.username);
-                const isVIP = vipUsers.has(message.username);
+                const password = message.password;
+                
+                // Check if admin login
+                const isAdmin = adminUsers.has(message.username) && adminUsers.get(message.username) === password;
+                const isVIP = vipUsers.has(message.username) || isAdmin;
+                
+                const isAuthenticated = true; // Basic users don't need password
                 
                 clients.set(clientId, { 
                     ws, 
                     username: message.username, 
                     isAdmin: isAdmin,
-                    isVIP: isVIP 
+                    isVIP: isVIP,
+                    isAuthenticated: isAuthenticated
                 });
                 
                 // Send user role info
                 ws.send(JSON.stringify({
                     type: 'user-role',
                     isAdmin: isAdmin,
-                    isVIP: isVIP
+                    isVIP: isVIP,
+                    username: message.username
                 }));
                 
                 // Broadcast user joined
@@ -53,6 +63,12 @@ wss.on('connection', (ws) => {
                     isAdmin: isAdmin,
                     isVIP: isVIP
                 }, clientId);
+                
+                // Send welcome message
+                ws.send(JSON.stringify({
+                    type: 'system',
+                    message: `🛡️ Welcome to Pakistan Room 60! ${isAdmin ? 'You are logged in as ADMIN' : isVIP ? 'You are VIP user' : 'Enjoy chatting!'}`
+                }));
             }
             else if (message.type === 'audio') {
                 broadcast({
@@ -63,6 +79,15 @@ wss.on('connection', (ws) => {
                 }, clientId);
             }
             else if (message.type === 'message') {
+                const client = clients.get(clientId);
+                if (!client || !client.isAuthenticated) {
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        message: '❌ Please join the chat first!'
+                    }));
+                    return;
+                }
+                
                 // Check for bad words
                 if (containsBadWords(message.text)) {
                     ws.send(JSON.stringify({
@@ -78,15 +103,16 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 
+                // ✅ FIX: Broadcast message to everyone including sender
                 broadcast({
                     type: 'message',
                     userId: clientId,
-                    username: message.username,
+                    username: client.username,
                     text: message.text,
                     timestamp: new Date().toISOString(),
-                    isAdmin: clients.get(clientId).isAdmin,
-                    isVIP: clients.get(clientId).isVIP
-                }, clientId);
+                    isAdmin: client.isAdmin,
+                    isVIP: client.isVIP
+                }); // Remove clientId exclusion so sender also sees message
             }
         } catch (error) {
             console.error('WebSocket error:', error);
@@ -97,11 +123,13 @@ wss.on('connection', (ws) => {
         clients.delete(clientId);
         console.log('Client disconnected:', clientId);
         
-        broadcast({
-            type: 'user-left',
-            userId: clientId,
-            username: currentUsername
-        });
+        if (currentUsername) {
+            broadcast({
+                type: 'user-left',
+                userId: clientId,
+                username: currentUsername
+            });
+        }
     });
 });
 
@@ -114,13 +142,13 @@ function containsBadWords(text) {
 // Admin command handler
 function handleCommand(command, clientId) {
     const client = clients.get(clientId);
-    if (!client) return;
+    if (!client || !client.isAuthenticated) return;
     
     const parts = command.split(' ');
     const cmd = parts[0].toLowerCase();
     const targetUser = parts[1];
     
-    // Only admin can use commands
+    // Check if user has permission for ANY commands
     if (!client.isAdmin && !client.isVIP) {
         client.ws.send(JSON.stringify({
             type: 'error',
@@ -131,47 +159,31 @@ function handleCommand(command, clientId) {
     
     switch(cmd) {
         case '/kick':
+        case '/ban':
+            // Only admin can kick/ban
             if (!client.isAdmin) {
                 client.ws.send(JSON.stringify({
                     type: 'error',
-                    message: '❌ Only admin can kick users!'
+                    message: '❌ Only admin can ' + cmd.substring(1) + ' users!'
                 }));
                 return;
             }
-            kickUser(targetUser, client.username);
+            if (cmd === '/kick') kickUser(targetUser, client.username);
+            else banUser(targetUser, client.username);
             break;
             
         case '/vip':
-            if (!client.isAdmin) {
-                client.ws.send(JSON.stringify({
-                    type: 'error',
-                    message: '❌ Only admin can assign VIP!'
-                }));
-                return;
-            }
-            makeVIP(targetUser, client.username);
-            break;
-            
         case '/unvip':
+            // Only admin can assign/remove VIP
             if (!client.isAdmin) {
                 client.ws.send(JSON.stringify({
                     type: 'error',
-                    message: '❌ Only admin can remove VIP!'
+                    message: '❌ Only admin can manage VIP users!'
                 }));
                 return;
             }
-            removeVIP(targetUser, client.username);
-            break;
-            
-        case '/ban':
-            if (!client.isAdmin) {
-                client.ws.send(JSON.stringify({
-                    type: 'error',
-                    message: '❌ Only admin can ban users!'
-                }));
-                return;
-            }
-            banUser(targetUser, client.username);
+            if (cmd === '/vip') makeVIP(targetUser, client.username);
+            else removeVIP(targetUser, client.username);
             break;
             
         case '/users':
@@ -179,7 +191,7 @@ function handleCommand(command, clientId) {
             break;
             
         case '/help':
-            showHelp(client.ws, client.isAdmin);
+            showHelp(client.ws, client.isAdmin, client.isVIP);
             break;
             
         default:
@@ -222,7 +234,8 @@ function makeVIP(targetUsername, adminUsername) {
             client.ws.send(JSON.stringify({
                 type: 'user-role',
                 isAdmin: client.isAdmin,
-                isVIP: true
+                isVIP: true,
+                username: client.username
             }));
         }
     });
@@ -243,7 +256,8 @@ function removeVIP(targetUsername, adminUsername) {
             client.ws.send(JSON.stringify({
                 type: 'user-role',
                 isAdmin: client.isAdmin,
-                isVIP: false
+                isVIP: false,
+                username: client.username
             }));
         }
     });
@@ -256,6 +270,7 @@ function removeVIP(targetUsername, adminUsername) {
 
 function banUser(targetUsername, adminUsername) {
     // Implement ban logic here
+    kickUser(targetUsername, adminUsername); // For now, just kick
     broadcast({
         type: 'system',
         message: `🚫 ${targetUsername} was banned by admin ${adminUsername}`
@@ -275,7 +290,7 @@ function listUsers(ws) {
     }));
 }
 
-function showHelp(ws, isAdmin) {
+function showHelp(ws, isAdmin, isVIP) {
     let helpText = `
 📋 Available Commands:
 /help - Show this help message
@@ -291,6 +306,12 @@ function showHelp(ws, isAdmin) {
 /unvip [username] - Remove VIP
 /ban [username] - Ban a user
 `;
+    } else if (isVIP) {
+        helpText += `
+⭐ VIP Commands:
+/users - Show online users
+/help - Show this help message
+`;
     }
     
     ws.send(JSON.stringify({
@@ -299,10 +320,11 @@ function showHelp(ws, isAdmin) {
     }));
 }
 
+// ✅ FIX: Broadcast function - remove exclusion so sender sees their own messages
 function broadcast(message, excludeClientId = null) {
     const data = JSON.stringify(message);
     clients.forEach((client, clientId) => {
-        if (clientId !== excludeClientId && client.ws.readyState === WebSocket.OPEN) {
+        if (client.ws.readyState === WebSocket.OPEN) {
             client.ws.send(data);
         }
     });
@@ -482,6 +504,10 @@ app.get('/', (req, res) => {
         }
         .login-box h2 { color: #3665b3; margin-bottom: 20px; }
         .username-input {
+            width: 100%; padding: 12px 15px; margin-bottom: 10px;
+            border: 2px solid #d1e0ff; border-radius: 8px; font-size: 16px;
+        }
+        .password-input {
             width: 100%; padding: 12px 15px; margin-bottom: 20px;
             border: 2px solid #d1e0ff; border-radius: 8px; font-size: 16px;
         }
@@ -494,14 +520,22 @@ app.get('/', (req, res) => {
         .command-hint {
             font-size: 12px; color: #666; margin-top: 5px;
         }
+        .login-info {
+            font-size: 12px; color: #666; margin-top: 10px;
+            background: #f0f8ff; padding: 10px; border-radius: 5px;
+        }
     </style>
 </head>
 <body>
     <div id="loginModal" class="login-modal">
         <div class="login-box">
             <h2>🛡️ Join Pakistan Room 60</h2>
-            <p style="color: #666; margin-bottom: 15px;">Admin: "admin" | VIP: Can use some commands</p>
             <input type="text" id="usernameInput" class="username-input" placeholder="Enter your username">
+            <input type="password" id="passwordInput" class="password-input" placeholder="Password (optional for admin)">
+            <div class="login-info">
+                🔐 Admin Login: one5ali / baadshahone51<br>
+                👥 Normal users: Any username, no password needed
+            </div>
             <button id="joinBtn" class="join-btn">Join Secure Chat</button>
         </div>
     </div>
@@ -520,7 +554,7 @@ app.get('/', (req, res) => {
             <div class="chat-area">
                 <div id="messagesContainer" class="messages">
                     <div class="message system">
-                        <div>🛡️ Secure Chat Started! Type /help for commands</div>
+                        <div>🛡️ Welcome to Pakistan Room 60! Type /help for commands</div>
                     </div>
                 </div>
                 <div class="input-area">
@@ -594,6 +628,9 @@ app.get('/', (req, res) => {
                 document.getElementById('usernameInput').addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.join();
                 });
+                document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.join();
+                });
                 
                 document.getElementById('sendBtn').addEventListener('click', () => this.sendMessage());
                 document.getElementById('messageInput').addEventListener('keypress', (e) => {
@@ -623,16 +660,18 @@ app.get('/', (req, res) => {
             
             join() {
                 const username = document.getElementById('usernameInput').value.trim();
+                const password = document.getElementById('passwordInput').value;
+                
                 if (!username) return alert('Please enter your username');
                 
                 this.username = username;
-                this.connectWebSocket();
+                this.connectWebSocket(username, password);
                 
                 document.getElementById('loginModal').classList.add('hidden');
                 document.getElementById('chatApp').classList.remove('hidden');
             }
             
-            connectWebSocket() {
+            connectWebSocket(username, password) {
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const wsUrl = \`\${protocol}//\${window.location.host}\`;
                 
@@ -642,7 +681,8 @@ app.get('/', (req, res) => {
                     this.updateConnectionStatus(true);
                     this.ws.send(JSON.stringify({
                         type: 'join',
-                        username: this.username
+                        username: username,
+                        password: password
                     }));
                 };
                 
@@ -657,7 +697,7 @@ app.get('/', (req, res) => {
                 
                 this.ws.onclose = () => {
                     this.updateConnectionStatus(false);
-                    setTimeout(() => this.connectWebSocket(), 3000);
+                    setTimeout(() => this.connectWebSocket(username, password), 3000);
                 };
             }
             
@@ -685,11 +725,12 @@ app.get('/', (req, res) => {
                         break;
                         
                     case 'message':
+                        // ✅ FIX: Show all messages including own
                         this.addMessage(
                             message.username, 
                             message.text, 
                             message.timestamp, 
-                            false,
+                            message.username === this.username, // isOwn
                             message.isAdmin,
                             message.isVIP
                         );
@@ -894,4 +935,5 @@ app.get('/', (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log('✅ Pakistan Admin Chat Server running on port ' + PORT);
+    console.log('🔐 Admin Login: one5ali / baadshahone51');
 });
