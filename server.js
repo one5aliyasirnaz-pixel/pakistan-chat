@@ -68,12 +68,23 @@ wss.on('connection', (ws) => {
                 }));
             }
             else if (message.type === 'audio') {
-                // Voice chat functionality
+                // Voice chat functionality - broadcast to all except sender
                 broadcast({
                     type: 'audio',
                     userId: clientId,
                     audioData: message.audioData,
                     username: message.username
+                }, clientId);
+                
+                // Send voice message notification to all
+                broadcast({
+                    type: 'message',
+                    userId: clientId,
+                    username: 'Voice',
+                    text: `${message.username} sent a voice message`,
+                    timestamp: new Date().toISOString(),
+                    isAdmin: false,
+                    isVIP: false
                 });
             }
             else if (message.type === 'message') {
@@ -95,15 +106,23 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 
-                broadcast({
-                    type: 'message',
-                    userId: clientId,
-                    username: client.username,
-                    text: message.text,
-                    timestamp: new Date().toISOString(),
-                    isAdmin: client.isAdmin,
-                    isVIP: client.isVIP
-                });
+                // Check if it's a private message
+                if (message.targetUser) {
+                    sendPrivateMessage(clientId, message.targetUser, message.text);
+                } else {
+                    broadcast({
+                        type: 'message',
+                        userId: clientId,
+                        username: client.username,
+                        text: message.text,
+                        timestamp: new Date().toISOString(),
+                        isAdmin: client.isAdmin,
+                        isVIP: client.isVIP
+                    });
+                }
+            }
+            else if (message.type === 'private-message') {
+                sendPrivateMessage(clientId, message.targetUser, message.text);
             }
         } catch (error) {
             console.error('WebSocket error:', error);
@@ -123,6 +142,43 @@ wss.on('connection', (ws) => {
         }
     });
 });
+
+// Send private message function
+function sendPrivateMessage(senderId, targetUsername, text) {
+    const sender = clients.get(senderId);
+    if (!sender) return;
+    
+    let targetClient = null;
+    clients.forEach((client, clientId) => {
+        if (client.username === targetUsername) {
+            targetClient = client;
+        }
+    });
+    
+    if (targetClient) {
+        // Send to target user
+        targetClient.ws.send(JSON.stringify({
+            type: 'private-message',
+            from: sender.username,
+            text: text,
+            timestamp: new Date().toISOString()
+        }));
+        
+        // Send confirmation to sender
+        sender.ws.send(JSON.stringify({
+            type: 'private-message-sent',
+            to: targetUsername,
+            text: text,
+            timestamp: new Date().toISOString()
+        }));
+    } else {
+        // Notify sender that user is not found
+        sender.ws.send(JSON.stringify({
+            type: 'error',
+            message: `User ${targetUsername} is not online`
+        }));
+    }
+}
 
 // Bad words filter
 function containsBadWords(text) {
@@ -308,10 +364,10 @@ function showHelp(ws, isAdmin, isVIP) {
     }));
 }
 
-function broadcast(message) {
+function broadcast(message, excludeClientId = null) {
     const data = JSON.stringify(message);
-    clients.forEach((client) => {
-        if (client.ws.readyState === WebSocket.OPEN) {
+    clients.forEach((client, clientId) => {
+        if (clientId !== excludeClientId && client.ws.readyState === WebSocket.OPEN) {
             client.ws.send(data);
         }
     });
@@ -728,6 +784,86 @@ app.get('/', (req, res) => {
             margin-bottom: 10px;
             text-align: center;
         }
+
+        /* Private Chat Windows */
+        .private-chat-window {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 300px;
+            height: 250px;
+            background: #ece9d8;
+            border: 2px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+        
+        .private-chat-header {
+            background: linear-gradient(to right, #800080, #a020f0);
+            color: white;
+            padding: 2px 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 18px;
+            font-weight: bold;
+        }
+        
+        .private-chat-messages {
+            flex: 1;
+            padding: 4px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #808080;
+            margin: 4px;
+            font-size: 11px;
+        }
+        
+        .private-chat-input {
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+        }
+        
+        .private-message-input {
+            flex: 1;
+            height: 18px;
+            border: 1px solid #808080;
+            padding: 2px 4px;
+            font-size: 11px;
+        }
+        
+        .private-send-button {
+            background: #ece9d8;
+            border: 1px solid;
+            border-top-color: #ffffff;
+            border-left-color: #ffffff;
+            border-right-color: #808080;
+            border-bottom-color: #808080;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        /* Mute button */
+        .mute-user-btn {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 2px 6px;
+            font-size: 10px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+        
+        .mute-user-btn.muted {
+            background: #00ff00;
+        }
     </style>
 </head>
 <body>
@@ -784,8 +920,8 @@ app.get('/', (req, res) => {
                             <div class="audio-bar"></div>
                         </div>
                         <div class="mute-control">
-                            <span>Mute:</span>
-                            <div class="mute-slider"></div>
+                            <span>Global Mute:</span>
+                            <div class="mute-slider" id="globalMute"></div>
                         </div>
                     </div>
                 </div>
@@ -810,6 +946,8 @@ app.get('/', (req, res) => {
         </div>
     </div>
 
+    <div id="privateChatsContainer"></div>
+
     <script>
         class PakistanChat {
             constructor() {
@@ -821,6 +959,8 @@ app.get('/', (req, res) => {
                 this.isRecording = false;
                 this.mediaRecorder = null;
                 this.audioChunks = [];
+                this.mutedUsers = new Set();
+                this.privateChats = new Map();
                 this.init();
             }
             
@@ -848,6 +988,9 @@ app.get('/', (req, res) => {
                 talkButton.addEventListener('mousedown', () => this.startVoice());
                 talkButton.addEventListener('mouseup', () => this.stopVoice());
                 talkButton.addEventListener('mouseleave', () => this.stopVoice());
+                
+                // Global mute
+                document.getElementById('globalMute').addEventListener('click', () => this.toggleGlobalMute());
                 
                 document.querySelectorAll('.window-control').forEach((control, index) => {
                     control.addEventListener('click', () => {
@@ -958,6 +1101,145 @@ app.get('/', (req, res) => {
                 reader.readAsDataURL(audioBlob);
             }
             
+            playAudioMessage(audioData, username) {
+                // Check if user is muted
+                if (this.mutedUsers.has(username)) {
+                    console.log('User', username, 'is muted, skipping audio');
+                    return;
+                }
+                
+                const audio = new Audio(audioData);
+                audio.play().catch(e => console.log('Audio play failed:', e));
+            }
+            
+            toggleGlobalMute() {
+                const muteSlider = document.getElementById('globalMute');
+                if (this.mutedUsers.size === 0) {
+                    // Mute all users
+                    const users = document.querySelectorAll('.user-item');
+                    users.forEach(user => {
+                        const username = user.querySelector('div:nth-child(2)').textContent.split(' ')[0];
+                        this.mutedUsers.add(username);
+                    });
+                    muteSlider.style.background = '#ff4444';
+                } else {
+                    // Unmute all users
+                    this.mutedUsers.clear();
+                    muteSlider.style.background = '#c0c0c0';
+                }
+            }
+            
+            toggleMuteUser(username) {
+                if (this.mutedUsers.has(username)) {
+                    this.mutedUsers.delete(username);
+                } else {
+                    this.mutedUsers.add(username);
+                }
+                this.updateUserList();
+            }
+            
+            openPrivateChat(username) {
+                if (this.privateChats.has(username)) {
+                    // Bring existing chat to front
+                    const chatWindow = this.privateChats.get(username);
+                    chatWindow.style.zIndex = '100';
+                    return;
+                }
+                
+                const chatContainer = document.getElementById('privateChatsContainer');
+                const chatWindow = document.createElement('div');
+                chatWindow.className = 'private-chat-window';
+                chatWindow.id = `private-chat-${username}`;
+                
+                chatWindow.innerHTML = `
+                    <div class="private-chat-header">
+                        <div>Private: ${username}</div>
+                        <div class="window-controls">
+                            <div class="window-control" onclick="pakistanChat.closePrivateChat('${username}')">×</div>
+                        </div>
+                    </div>
+                    <div class="private-chat-messages" id="private-messages-${username}"></div>
+                    <div class="private-chat-input">
+                        <input type="text" class="private-message-input" id="private-input-${username}" placeholder="Type private message...">
+                        <button class="private-send-button" onclick="pakistanChat.sendPrivateMessage('${username}')">Send</button>
+                    </div>
+                `;
+                
+                chatContainer.appendChild(chatWindow);
+                this.privateChats.set(username, chatWindow);
+                
+                // Make draggable
+                this.makeDraggable(chatWindow);
+            }
+            
+            closePrivateChat(username) {
+                const chatWindow = this.privateChats.get(username);
+                if (chatWindow) {
+                    chatWindow.remove();
+                    this.privateChats.delete(username);
+                }
+            }
+            
+            makeDraggable(element) {
+                let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+                const header = element.querySelector('.private-chat-header');
+                
+                header.onmousedown = dragMouseDown;
+                
+                function dragMouseDown(e) {
+                    e = e || window.event;
+                    e.preventDefault();
+                    pos3 = e.clientX;
+                    pos4 = e.clientY;
+                    document.onmouseup = closeDragElement;
+                    document.onmousemove = elementDrag;
+                }
+                
+                function elementDrag(e) {
+                    e = e || window.event;
+                    e.preventDefault();
+                    pos1 = pos3 - e.clientX;
+                    pos2 = pos4 - e.clientY;
+                    pos3 = e.clientX;
+                    pos4 = e.clientY;
+                    element.style.top = (element.offsetTop - pos2) + "px";
+                    element.style.left = (element.offsetLeft - pos1) + "px";
+                }
+                
+                function closeDragElement() {
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+                }
+            }
+            
+            sendPrivateMessage(targetUsername) {
+                const input = document.getElementById(`private-input-${targetUsername}`);
+                const text = input.value.trim();
+                if (!text || !this.ws) return;
+                
+                this.ws.send(JSON.stringify({
+                    type: 'private-message',
+                    targetUser: targetUsername,
+                    text: text
+                }));
+                
+                // Add to private chat window
+                this.addPrivateMessage(targetUsername, this.username, text, true);
+                input.value = '';
+            }
+            
+            addPrivateMessage(targetUsername, from, text, isOwn = false) {
+                const messagesContainer = document.getElementById(`private-messages-${targetUsername}`);
+                if (!messagesContainer) return;
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message-line';
+                messageDiv.innerHTML = `<span class="username ${isOwn ? 'blue' : 'green'}">${from}:</span> ${text}`;
+                
+                messagesContainer.appendChild(messageDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
             join() {
                 const username = document.getElementById('usernameInput').value.trim();
                 const password = document.getElementById('passwordInput').value;
@@ -1034,13 +1316,18 @@ app.get('/', (req, res) => {
                     case 'warning':
                         this.addMessage('System', message.message, 'red');
                         break;
+                        
+                    case 'private-message':
+                        this.addPrivateMessage(message.from, message.from, message.text, false);
+                        if (!this.privateChats.has(message.from)) {
+                            this.openPrivateChat(message.from);
+                        }
+                        break;
+                        
+                    case 'private-message-sent':
+                        this.addPrivateMessage(message.to, this.username, message.text, true);
+                        break;
                 }
-            }
-            
-            playAudioMessage(audioData, username) {
-                const audio = new Audio(audioData);
-                audio.play().catch(e => console.log('Audio play failed:', e));
-                this.addMessage('Voice', username + ' sent a voice message', 'blue');
             }
             
             addMessage(sender, text, color = 'blue') {
@@ -1064,8 +1351,23 @@ app.get('/', (req, res) => {
                 if (isAdmin) badges = ' 🛡️';
                 if (isVIP) badges = ' ⭐';
                 
-                userDiv.innerHTML = '<div class="user-icon">' + initial + '</div><div>' + username + badges + '</div>';
+                const isMuted = this.mutedUsers.has(username);
+                
+                userDiv.innerHTML = `
+                    <div class="user-icon">${initial}</div>
+                    <div>${username}${badges}</div>
+                    <button class="mute-user-btn ${isMuted ? 'muted' : ''}" onclick="pakistanChat.toggleMuteUser('${username}')">
+                        ${isMuted ? '🔊' : '🔇'}
+                    </button>
+                `;
                 userDiv.id = 'user-' + username;
+                
+                // Add click event for private chat
+                userDiv.addEventListener('dblclick', () => {
+                    if (username !== this.username) {
+                        this.openPrivateChat(username);
+                    }
+                });
                 
                 container.appendChild(userDiv);
             }
@@ -1075,11 +1377,24 @@ app.get('/', (req, res) => {
                 if (userElement) {
                     userElement.remove();
                 }
+                this.closePrivateChat(username);
             }
             
             updateUserCount() {
                 const userCount = document.querySelectorAll('.user-item').length;
                 document.getElementById('userCount').textContent = userCount;
+            }
+            
+            updateUserList() {
+                const users = document.querySelectorAll('.user-item');
+                users.forEach(user => {
+                    const username = user.querySelector('div:nth-child(2)').textContent.split(' ')[0];
+                    const muteButton = user.querySelector('.mute-user-btn');
+                    const isMuted = this.mutedUsers.has(username);
+                    
+                    muteButton.className = `mute-user-btn ${isMuted ? 'muted' : ''}`;
+                    muteButton.innerHTML = isMuted ? '🔊' : '🔇';
+                });
             }
             
             getUserColor(username) {
