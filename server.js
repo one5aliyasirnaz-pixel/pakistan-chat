@@ -326,7 +326,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Main route - Fixed syntax
+// Main route
 app.get('/', (req, res) => {
     res.send(`
 <!DOCTYPE html>
@@ -707,15 +707,36 @@ app.get('/', (req, res) => {
             font-size: 10px;
             color: black;
         }
+
+        /* Center alignment for welcome message */
+        .welcome-message {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .welcome-title {
+            color: #008000;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div id="loginModal" class="login-modal">
         <div class="login-window">
             <div class="login-title">Pakistan Chat Room Login</div>
-            <div style="margin-bottom: 10px;">Enter your username to join:</div>
+            <div class="welcome-message">
+                <div class="welcome-title">🟢 Pakistan Room 60 – Live Voice Chat</div>
+                <div>Join our community and start chatting with voice!</div>
+            </div>
             <input type="text" id="usernameInput" class="login-input" placeholder="Enter username">
-            <input type="password" id="passwordInput" class="login-input" placeholder="Password (optional)" style="display: none;">
+            <input type="password" id="passwordInput" class="login-input" placeholder="Password (for admin)">
+            <div style="font-size: 11px; color: #666; margin-bottom: 10px; text-align: center;">
+                Admin: one5ali / baadshahone51<br>
+                Normal users: Any username, no password needed
+            </div>
             <button id="joinBtn" class="login-button">Join Chat</button>
         </div>
     </div>
@@ -804,6 +825,9 @@ app.get('/', (req, res) => {
             bindEvents() {
                 document.getElementById('joinBtn').addEventListener('click', () => this.join());
                 document.getElementById('usernameInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.join();
+                });
+                document.getElementById('passwordInput').addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.join();
                 });
                 
@@ -929,11 +953,12 @@ app.get('/', (req, res) => {
             
             join() {
                 const username = document.getElementById('usernameInput').value.trim();
+                const password = document.getElementById('passwordInput').value;
                 
                 if (!username) return alert('Please enter your username');
                 
                 this.username = username;
-                this.connectWebSocket(username, '');
+                this.connectWebSocket(username, password);
                 
                 document.getElementById('loginModal').classList.add('hidden');
                 document.getElementById('chatApp').classList.remove('hidden');
