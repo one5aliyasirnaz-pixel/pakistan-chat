@@ -721,6 +721,13 @@ app.get('/', (req, res) => {
             font-size: 16px;
             margin-bottom: 10px;
         }
+        
+        .password-hint {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 10px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -732,10 +739,10 @@ app.get('/', (req, res) => {
                 <div>Join our community and start chatting with voice!</div>
             </div>
             <input type="text" id="usernameInput" class="login-input" placeholder="Enter username">
-            <input type="password" id="passwordInput" class="login-input" placeholder="Password (for admin)">
-            <div style="font-size: 11px; color: #666; margin-bottom: 10px; text-align: center;">
-                Admin: one5ali / baadshahone51<br>
-                Normal users: Any username, no password needed
+            <input type="password" id="passwordInput" class="login-input" placeholder="Password (for admin only)">
+            <div class="password-hint">
+                Normal users: Enter username only<br>
+                Admin users: Enter username and password
             </div>
             <button id="joinBtn" class="login-button">Join Chat</button>
         </div>
