@@ -382,10 +382,9 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Main route
+// Main route - Fixed syntax
 app.get('/', (req, res) => {
-    res.send(`
-<!DOCTYPE html>
+    res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1149,21 +1148,9 @@ app.get('/', (req, res) => {
                 const chatContainer = document.getElementById('privateChatsContainer');
                 const chatWindow = document.createElement('div');
                 chatWindow.className = 'private-chat-window';
-                chatWindow.id = `private-chat-${username}`;
+                chatWindow.id = 'private-chat-' + username;
                 
-                chatWindow.innerHTML = `
-                    <div class="private-chat-header">
-                        <div>Private: ${username}</div>
-                        <div class="window-controls">
-                            <div class="window-control" onclick="pakistanChat.closePrivateChat('${username}')">×</div>
-                        </div>
-                    </div>
-                    <div class="private-chat-messages" id="private-messages-${username}"></div>
-                    <div class="private-chat-input">
-                        <input type="text" class="private-message-input" id="private-input-${username}" placeholder="Type private message...">
-                        <button class="private-send-button" onclick="pakistanChat.sendPrivateMessage('${username}')">Send</button>
-                    </div>
-                `;
+                chatWindow.innerHTML = '<div class="private-chat-header"><div>Private: ' + username + '</div><div class="window-controls"><div class="window-control" onclick="pakistanChat.closePrivateChat(\\'' + username + '\\')">×</div></div></div><div class="private-chat-messages" id="private-messages-' + username + '"></div><div class="private-chat-input"><input type="text" class="private-message-input" id="private-input-' + username + '" placeholder="Type private message..."><button class="private-send-button" onclick="pakistanChat.sendPrivateMessage(\\'' + username + '\\')">Send</button></div>';
                 
                 chatContainer.appendChild(chatWindow);
                 this.privateChats.set(username, chatWindow);
@@ -1213,7 +1200,7 @@ app.get('/', (req, res) => {
             }
             
             sendPrivateMessage(targetUsername) {
-                const input = document.getElementById(`private-input-${targetUsername}`);
+                const input = document.getElementById('private-input-' + targetUsername);
                 const text = input.value.trim();
                 if (!text || !this.ws) return;
                 
@@ -1229,12 +1216,12 @@ app.get('/', (req, res) => {
             }
             
             addPrivateMessage(targetUsername, from, text, isOwn = false) {
-                const messagesContainer = document.getElementById(`private-messages-${targetUsername}`);
+                const messagesContainer = document.getElementById('private-messages-' + targetUsername);
                 if (!messagesContainer) return;
                 
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message-line';
-                messageDiv.innerHTML = `<span class="username ${isOwn ? 'blue' : 'green'}">${from}:</span> ${text}`;
+                messageDiv.innerHTML = '<span class="username ' + (isOwn ? 'blue' : 'green') + '">' + from + ':</span> ' + text;
                 
                 messagesContainer.appendChild(messageDiv);
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -1353,13 +1340,7 @@ app.get('/', (req, res) => {
                 
                 const isMuted = this.mutedUsers.has(username);
                 
-                userDiv.innerHTML = `
-                    <div class="user-icon">${initial}</div>
-                    <div>${username}${badges}</div>
-                    <button class="mute-user-btn ${isMuted ? 'muted' : ''}" onclick="pakistanChat.toggleMuteUser('${username}')">
-                        ${isMuted ? '🔊' : '🔇'}
-                    </button>
-                `;
+                userDiv.innerHTML = '<div class="user-icon">' + initial + '</div><div>' + username + badges + '</div><button class="mute-user-btn ' + (isMuted ? 'muted' : '') + '" onclick="pakistanChat.toggleMuteUser(\\'' + username + '\\')">' + (isMuted ? '🔊' : '🔇') + '</button>';
                 userDiv.id = 'user-' + username;
                 
                 // Add click event for private chat
@@ -1392,7 +1373,7 @@ app.get('/', (req, res) => {
                     const muteButton = user.querySelector('.mute-user-btn');
                     const isMuted = this.mutedUsers.has(username);
                     
-                    muteButton.className = `mute-user-btn ${isMuted ? 'muted' : ''}`;
+                    muteButton.className = 'mute-user-btn ' + (isMuted ? 'muted' : '');
                     muteButton.innerHTML = isMuted ? '🔊' : '🔇';
                 });
             }
@@ -1425,8 +1406,7 @@ app.get('/', (req, res) => {
         });
     </script>
 </body>
-</html>
-    `);
+</html>`);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
